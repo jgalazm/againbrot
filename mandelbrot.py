@@ -46,6 +46,9 @@ vec3 hsv_to_rgb(float h, float s, float v) {
     vec3 rgb = clamp(abs(mod(h*6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
     return v * mix(vec3(1.0), rgb, s);
 }
+vec4 mapColor(float mcol) {
+    return vec4(0.5 + 0.5*cos(2.7+mcol*30.0 + vec3(0.6, .0, 1.0)), 1.0);
+}
 
 void main() {
     vec2 c = v_position * u_zoom + u_offset;
@@ -53,21 +56,28 @@ void main() {
     int iterations;
     int norm_iterations = 2500;
     for(iterations = 0; iterations < u_max_iterations; iterations++) {
-        if (dot(z, z) > 4.0) break;
+        if (dot(z, z) > 7.0) break;
         z = vec2(
             z.x * z.x - z.y * z.y + c.x,
             2.0 * z.x * z.y + c.y
         );
     }
     
-    float color = float(mod(iterations,norm_iterations)) / float(norm_iterations);
-    vec3 rgb = hsv_to_rgb(color, 1.0, iterations < u_max_iterations ? 1.0 : 0.0);
+    
+    float color = dot(z,z) > 7 ? (float(iterations) - log2(log2(dot(z,z))) + 4.0)*0.0025: 0.0;
+    vec3 rgb = mapColor(color).rgb;
+
+    // float color = float(mod(iterations,norm_iterations)) / float(norm_iterations);
+    //vec3 rgb = hsv_to_rgb(color, 1.0, iterations < u_max_iterations ? 1.0 : 0.0);
+    
     gl_FragColor = vec4(rgb, 1.0);
 
-    vec2 texture_coords = mod(vec2(z.x, 1.0-z.y)/10.0, vec2(1.0, 1.0));
-    vec3 tex_color = texture2D(u_texture, texture_coords).rgb;
-    tex_color = iterations < u_max_iterations ? tex_color: vec3(0.0, 0.0, 0.0);
-    gl_FragColor = vec4(tex_color, 1.0);    
+    //vec2 texture_coords = mod(vec2(z.x, 1.0-z.y), vec2(1.0, 1.0));
+    //vec3 tex_color = texture2D(u_texture, texture_coords).rgb;
+    // tex_color = iterations < u_max_iterations ? tex_color: vec3(0.0, 0.0, 0.0);
+    //gl_FragColor = vec4(tex_color, 1.0);    
+
+
 }
 """
 
@@ -85,17 +95,24 @@ class MandelbrotCanvas(app.Canvas):
         self.color_texture = gloo.Texture2D(image_data)
         self.program = gloo.Program(vertex_shader, fragment_shader)
         self.program['a_position'] = self.vbo
-        self.program['u_zoom'] = 2.0
-        self.program['u_offset'] = np.array([-0.7453, 0.1127])
         self.program['u_texture'] = self.color_texture
-        self.program['u_max_iterations'] = 2500
         
         gloo.set_clear_color('black')
         self.zoom = 2.0
+        # self.zoom = 1.4831937955578253e-06
+
         self.offset = np.array([-0.7453, 0.1127])
+        # self.offset = np.array([0.25740134, 0.00124048])
+
         self.max_iterations = 2500
+
+        self.program['u_max_iterations'] = self.max_iterations
+        self.program['u_zoom'] = self.zoom
+        self.program['u_offset'] = self.offset
         self.show()
 
+
+        # 2500
     def on_draw(self, event):
         gloo.clear()
         gloo.set_state(blend=False)
