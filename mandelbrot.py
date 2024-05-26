@@ -1,6 +1,7 @@
 import numpy as np
 from vispy import app, gloo, use
 from PIL import Image
+import imageio
 
 # Set the backend to PyQt5
 use('pyqt5')
@@ -88,7 +89,7 @@ image_data = np.array(image)
 
 
 class MandelbrotCanvas(app.Canvas):
-    def __init__(self):
+    def __init__(self, writer):
         app.Canvas.__init__(self, size=(1100, 1100), title='Mandelbrot Set Zoom Animation')
         self.vertices = np.array([[-1, -1], [-1, 1], [1, -1], [1, 1]], dtype=np.float32)
         self.vbo = gloo.VertexBuffer(self.vertices)
@@ -111,12 +112,17 @@ class MandelbrotCanvas(app.Canvas):
         self.program['u_offset'] = self.offset
         self.show()
 
+        self.writer = writer  # Writer object to write frames directly
+
+
 
         # 2500
     def on_draw(self, event):
         gloo.clear()
         gloo.set_state(blend=False)
         self.program.draw('triangle_strip')
+        frame = gloo.read_pixels()  # Capture frame
+        self.writer.append_data(frame)  # Write frame to video        
 
     def on_mouse_wheel(self, event):
         # Determine the zoom factor (you might adjust the rate of zoom here)
@@ -188,5 +194,10 @@ class MandelbrotCanvas(app.Canvas):
     def on_resize(self, event):
         gloo.set_viewport(0, 0, *event.physical_size)
 if __name__ == '__main__':
-    canvas = MandelbrotCanvas()
-    app.run()
+    # canvas = MandelbrotCanvas()
+    # app.run()
+
+    with imageio.get_writer('mandelbrot_animation.mp4', fps=30) as writer:
+        canvas = MandelbrotCanvas(writer)
+        app.run()
+    print("Animation saved to mandelbrot_animation.mp4")    
